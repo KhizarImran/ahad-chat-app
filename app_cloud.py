@@ -184,7 +184,7 @@ def admin_panel():
 
 def login_page():
     """Display login page"""
-    st.title("🗨️ AhadChat - Cloud Edition")
+    st.title("🗨️ AhadChat")
     st.markdown("### Welcome! Please log in to start chatting")
     st.info("💡 This version works across different networks and devices!")
     
@@ -211,7 +211,6 @@ def login_page():
     
     # Show password hints
     with st.expander("🔑 Password Hints"):
-        st.write("**Khizar's password:** khizar123 👑 (Admin)")
         st.write("**Ahad's password:** ahad123")
     
     # Configuration status
@@ -248,15 +247,16 @@ def chat_page():
     if 'last_refresh' not in st.session_state:
         st.session_state.last_refresh = time.time()
     
-    # Display messages
+    # Display messages in a clean, simple container
     messages = load_messages_cloud()
     
-    # Create a container for messages
-    message_container = st.container()
-    
-    with message_container:
+    # Create a container with fixed height for scrolling
+    with st.container(height=400, border=True):
         if messages:
-            for msg in messages[-50:]:  # Show last 50 messages
+            # Get last 50 messages for better performance
+            recent_messages = messages[-50:] if len(messages) > 50 else messages
+            
+            for msg in recent_messages:
                 timestamp = msg["timestamp"]
                 username = msg["username"]
                 message_text = msg["message"]
@@ -266,44 +266,52 @@ def chat_page():
                 if USERS[username]["is_admin"]:
                     display_name += " 👑"
                 
-                # Different styling for current user vs other user
+                # Create columns for better centered message layout
                 if username == st.session_state.username:
-                    # Current user's message (right-aligned)
-                    st.markdown(f"""
-                    <div style='text-align: right; margin: 10px 0;'>
-                        <div style='background-color: #007ACC; color: white; padding: 10px; border-radius: 15px; display: inline-block; max-width: 70%; text-align: left;'>
-                            <strong>You</strong><br>
-                            {message_text}
-                        </div>
-                        <div style='font-size: 12px; color: #666; margin-top: 5px;'>
-                            {timestamp}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    # Your message (right side, but more centered)
+                    col1, col2, col3 = st.columns([1, 2, 0.2])
+                    with col2:
+                        st.markdown(f"**You** - {timestamp}")
+                        st.info(message_text)
                 else:
-                    # Other user's message (left-aligned)
-                    st.markdown(f"""
-                    <div style='text-align: left; margin: 10px 0;'>
-                        <div style='background-color: #E8E8E8; color: black; padding: 10px; border-radius: 15px; display: inline-block; max-width: 70%;'>
-                            <strong>{display_name}</strong><br>
-                            {message_text}
-                        </div>
-                        <div style='font-size: 12px; color: #666; margin-top: 5px;'>
-                            {timestamp}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    # Other user's message (left side, but more centered)  
+                    col1, col2, col3 = st.columns([0.2, 2, 1])
+                    with col2:
+                        st.markdown(f"**{display_name}** - {timestamp}")
+                        st.success(message_text)
+                
+                # Small spacer
+                st.markdown("")
+            
         else:
-            st.info("No messages yet. Start the conversation!")
+            st.markdown("### 💬 Welcome to AhadChat!")
+            st.markdown("No messages yet. Start the conversation below!")
     
-    # Message input form
+    # Message count indicator
+    if messages:
+        total_messages = len(messages)
+        if total_messages > 50:
+            st.caption(f"💬 Showing last 50 of {total_messages} messages")
+        else:
+            st.caption(f"💬 {total_messages} message{'s' if total_messages != 1 else ''}")
+    
+    # Simple message input form
     st.markdown("---")
+    
     with st.form("message_form", clear_on_submit=True):
         col1, col2 = st.columns([4, 1])
         with col1:
-            new_message = st.text_input("Type your message:", placeholder="Enter your message here...", label_visibility="collapsed")
+            new_message = st.text_input(
+                "Type your message:", 
+                placeholder="💬 Type your message here...", 
+                label_visibility="collapsed"
+            )
         with col2:
-            send_button = st.form_submit_button("Send 📤", use_container_width=True)
+            send_button = st.form_submit_button(
+                "Send 📤", 
+                use_container_width=True,
+                type="primary"
+            )
         
         if send_button and new_message.strip():
             add_message_cloud(st.session_state.username, new_message.strip())

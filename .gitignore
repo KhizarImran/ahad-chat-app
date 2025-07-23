@@ -35,6 +35,7 @@ venv.bak/
 # Streamlit
 .streamlit/config.toml
 .streamlit/credentials.toml
+.streamlit/secrets.toml
 
 # Note: .streamlit/secrets.toml contains template values and can be committed
 # For deployment, use Streamlit Cloud's secrets interface with real values
