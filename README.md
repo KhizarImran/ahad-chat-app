@@ -8,7 +8,8 @@ A simple chat application built with Streamlit for Khizar and Ahad to communicat
 Perfect for same network/computer use
 
 ### 🌍 Cloud Version (`app_cloud.py`)  
-**For London ↔ Newcastle chatting!** Deploy to Streamlit Cloud for global access.
+**For London ↔ Newcastle chatting!** Deploy to Streamlit Cloud for global access.  
+**Now includes admin features for Khizar** 👑 - message management, statistics, cleanup tools!
 
 ## Features
 
@@ -18,6 +19,7 @@ Perfect for same network/computer use
 - 📱 Clean and modern UI
 - 💾 Messages stored persistently (JSON file locally, GitHub Gist for cloud)
 - 🌍 **Cloud version works across different networks and countries**
+- 👑 **Admin features for Khizar**: message statistics, cleanup tools, export functionality
 
 ## 🖥️ Local Setup (Same Network)
 
@@ -59,16 +61,6 @@ Perfect for same network/computer use
 - ✅ No installation needed
 - ✅ Free hosting
 
-## How to Use
-
-### Login
-- **Khizar's credentials:**
-  - Username: `khizar`
-  - Password: `khizar123`
-
-- **Ahad's credentials:**
-  - Username: `ahad`
-  - Password: `ahad123`
 
 ### Chatting
 - Once logged in, you'll see the chat interface
@@ -83,12 +75,13 @@ Perfect for same network/computer use
 ```
 ahadchat/
 ├── app.py                    # Local version (same network)
-├── app_cloud.py              # Cloud version (global access)
+├── app_cloud.py              # Cloud version (global access + admin features 👑)
 ├── requirements.txt          # Dependencies for local version
 ├── requirements_cloud.txt    # Dependencies for cloud version
 ├── run_chat.bat             # Windows launcher for local version
 ├── README.md                # This file
 ├── DEPLOYMENT.md            # Cloud deployment guide
+├── COMPARISON.md            # Feature comparison between versions
 ├── .streamlit/
 │   └── secrets.toml         # Streamlit Cloud secrets template
 └── messages.json            # Local chat storage (created automatically)

@@ -8,8 +8,8 @@ from urllib.parse import quote
 
 # Configuration - can be overridden by Streamlit secrets
 USERS = {
-    "khizar": {"name": "Khizar", "password": "khizar123"},
-    "ahad": {"name": "Ahad", "password": "ahad123"}
+    "khizar": {"name": "Khizar", "password": "khizar123", "is_admin": True},
+    "ahad": {"name": "Ahad", "password": "ahad123", "is_admin": False}
 }
 
 # Use GitHub Gist as a simple cloud database
@@ -80,6 +80,108 @@ def add_message_cloud(username, message):
     messages.append(new_message)
     save_messages_cloud(messages)
 
+def get_message_stats(messages):
+    """Get statistics about messages"""
+    if not messages:
+        return {"total": 0, "khizar": 0, "ahad": 0, "size_kb": 0}
+    
+    khizar_count = len([m for m in messages if m["username"] == "khizar"])
+    ahad_count = len([m for m in messages if m["username"] == "ahad"])
+    size_bytes = len(json.dumps(messages).encode('utf-8'))
+    
+    return {
+        "total": len(messages),
+        "khizar": khizar_count,
+        "ahad": ahad_count,
+        "size_kb": round(size_bytes / 1024, 2),
+        "first_message": messages[0]["timestamp"] if messages else None,
+        "last_message": messages[-1]["timestamp"] if messages else None
+    }
+
+def admin_panel():
+    """Display admin panel for Khizar"""
+    st.markdown("---")
+    st.markdown("## 👑 Admin Panel")
+    
+    messages = load_messages_cloud()
+    stats = get_message_stats(messages)
+    
+    # Statistics
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Total Messages", stats["total"])
+    with col2:
+        st.metric("Your Messages", stats["khizar"])
+    with col3:
+        st.metric("Ahad's Messages", stats["ahad"])
+    with col4:
+        st.metric("Storage Used", f"{stats['size_kb']} KB")
+    
+    if stats["total"] > 0:
+        st.write(f"**First message:** {stats['first_message']}")
+        st.write(f"**Latest message:** {stats['last_message']}")
+        
+        # Storage warning
+        if stats["size_kb"] > 500:  # Warn at 500KB
+            st.warning(f"⚠️ Storage usage is getting high ({stats['size_kb']} KB). Consider cleaning up old messages.")
+        elif stats["size_kb"] > 1000:  # Alert at 1MB
+            st.error(f"🚨 High storage usage ({stats['size_kb']} KB)! Please clean up messages.")
+    
+    # Admin Actions
+    st.markdown("### 🛠️ Management Tools")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("🗑️ Clear All Messages", type="secondary"):
+            if st.session_state.get('confirm_clear_all'):
+                save_messages_cloud([])
+                st.success("✅ All messages cleared!")
+                st.session_state.confirm_clear_all = False
+                st.rerun()
+            else:
+                st.session_state.confirm_clear_all = True
+                st.warning("⚠️ Click again to confirm deletion of ALL messages")
+    
+    with col2:
+        keep_last = st.number_input("Keep last N messages:", min_value=10, max_value=1000, value=100, step=10)
+        if st.button("🧹 Keep Recent Only", type="secondary"):
+            if messages and len(messages) > keep_last:
+                recent_messages = messages[-keep_last:]
+                save_messages_cloud(recent_messages)
+                deleted_count = len(messages) - keep_last
+                st.success(f"✅ Kept last {keep_last} messages, deleted {deleted_count} old messages")
+                st.rerun()
+            else:
+                st.info("No cleanup needed")
+    
+    with col3:
+        if st.button("📥 Export Chat History", type="secondary"):
+            if messages:
+                # Create downloadable JSON
+                chat_export = {
+                    "export_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "total_messages": len(messages),
+                    "messages": messages
+                }
+                
+                st.download_button(
+                    label="💾 Download JSON",
+                    data=json.dumps(chat_export, indent=2, ensure_ascii=False),
+                    file_name=f"ahadchat_history_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                    mime="application/json"
+                )
+                st.success("📁 Export ready for download!")
+            else:
+                st.info("No messages to export")
+    
+    # Advanced Settings
+    with st.expander("⚙️ Advanced Settings"):
+        st.markdown("**Auto-cleanup Settings** (Future feature)")
+        auto_cleanup = st.checkbox("Enable auto-cleanup at 10,000 messages", disabled=True)
+        max_messages = st.slider("Max messages to keep", 1000, 50000, 10000, disabled=True)
+        st.info("💡 These features can be enabled in future updates")
+
 def login_page():
     """Display login page"""
     st.title("🗨️ AhadChat - Cloud Edition")
@@ -100,6 +202,7 @@ def login_page():
                         st.session_state.logged_in = True
                         st.session_state.username = username
                         st.session_state.display_name = USERS[username]["name"]
+                        st.session_state.is_admin = USERS[username]["is_admin"]
                         st.rerun()
                     else:
                         st.error("❌ Invalid credentials!")
@@ -108,7 +211,7 @@ def login_page():
     
     # Show password hints
     with st.expander("🔑 Password Hints"):
-        st.write("**Khizar's password:** khizar123")
+        st.write("**Khizar's password:** khizar123 👑 (Admin)")
         st.write("**Ahad's password:** ahad123")
     
     # Configuration status
@@ -125,13 +228,17 @@ def chat_page():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col1:
         if st.button("🚪 Logout"):
-            st.session_state.logged_in = False
-            st.session_state.username = None
-            st.session_state.display_name = None
+            # Clear session state
+            for key in ['logged_in', 'username', 'display_name', 'is_admin', 'confirm_clear_all']:
+                if key in st.session_state:
+                    del st.session_state[key]
             st.rerun()
     
     with col2:
-        st.title(f"💬 Chat - Welcome {st.session_state.display_name}!")
+        title = f"💬 Chat - Welcome {st.session_state.display_name}!"
+        if st.session_state.get('is_admin'):
+            title += " 👑"
+        st.title(title)
     
     with col3:
         if st.button("🔄 Refresh"):
@@ -154,6 +261,10 @@ def chat_page():
                 username = msg["username"]
                 message_text = msg["message"]
                 display_name = USERS[username]["name"]
+                
+                # Add admin crown to Khizar's messages
+                if USERS[username]["is_admin"]:
+                    display_name += " 👑"
                 
                 # Different styling for current user vs other user
                 if username == st.session_state.username:
@@ -198,6 +309,10 @@ def chat_page():
             add_message_cloud(st.session_state.username, new_message.strip())
             st.rerun()
     
+    # Admin Panel (only for Khizar)
+    if st.session_state.get('is_admin'):
+        admin_panel()
+    
     # Auto-refresh mechanism
     current_time = time.time()
     if current_time - st.session_state.last_refresh > 3:  # Faster refresh for cloud
@@ -213,11 +328,13 @@ def main():
         st.session_state.username = None
     if 'display_name' not in st.session_state:
         st.session_state.display_name = None
+    if 'is_admin' not in st.session_state:
+        st.session_state.is_admin = False
     
     # Set page config
     st.set_page_config(
         page_title="AhadChat Cloud",
-        page_icon="💬",
+        page_icon="👑",
         layout="wide",
         initial_sidebar_state="collapsed"
     )
